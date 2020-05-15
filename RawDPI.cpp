@@ -48,6 +48,7 @@ int main(int argc, char** argv)
 
   signal(SIGPIPE, SIG_IGN);
 	InitializeExceptionsList();
+	LoadIPsFromFile();
 	//std::thread(StartOutputStream).detach();
 	#ifdef _WIN32
       	WSADATA WSAData;
@@ -56,6 +57,8 @@ int main(int argc, char** argv)
 
 
 	int ListenerSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	int wow = 1;
+	setsockopt(ListenerSocket, SOL_SOCKET, SO_REUSEADDR, &wow, sizeof(int));
 	sockaddr_in ListenerAddress;
 	ListenerAddress.sin_family = AF_INET;
 	ListenerAddress.sin_addr.s_addr = INADDR_ANY;

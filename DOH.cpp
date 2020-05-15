@@ -14,11 +14,13 @@
 #endif // __unix__
 
 
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <mutex>
 std::map<std::string, std::string> Domains;
 std::mutex mapmtx;
+std::mutex filemtx;
 std::string ExtractIPFromAnswer(std::string ansstr)
 {
 	int iploc = ansstr.find("IP:") + 3;
@@ -30,11 +32,21 @@ std::string ExtractIPFromAnswer(std::string ansstr)
 	return "";
 }
 
+void SaveIPToFile(std::string host, std::string ip)
+{
+	filemtx.lock();
+	std::ofstream ostr("hosts.txt", std::ios::app);
+	ostr << host << " " << ip << '\n';
+	ostr.close();
+	filemtx.unlock();
+}
+
 std::string ResolveDOHIP(std::string HostName)
 {
 	std::map<std::string, std::string>::iterator it = Domains.find(HostName);
 	if (it != Domains.end())
 		return Domains.at(HostName);
+
 
 	char* recvbuff = new char[2000];
 	int Socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -73,6 +85,18 @@ std::string ResolveDOHIP(std::string HostName)
 	mapmtx.lock();
 	Domains.insert({ HostName, IP });
 	mapmtx.unlock();
-
+	SaveIPToFile(HostName, IP);
 	return IP;
+}
+
+void LoadIPsFromFile()
+{
+	std::string host, ip;
+	std::ifstream ins("hosts.txt");
+	while (!ins.eof())
+	{
+		ins >> host >> ip;
+		Domains.insert({ host, ip });
+	}
+	std::cout << Domains.size() << " Read from file\n";
 }

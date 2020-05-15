@@ -1,0 +1,5 @@
+hcaptcha.com
+assets.hcaptcha.com
+imgs.hcaptcha.com
+stackoverflow.com
+google.com
