@@ -43,10 +43,11 @@ void SaveIPToFile(std::string host, std::string ip)
 
 std::string ResolveDOHIP(std::string HostName)
 {
+
 	std::map<std::string, std::string>::iterator it = Domains.find(HostName);
 	if (it != Domains.end())
 		return Domains.at(HostName);
-
+ std::cout << "SHOULD RESOLVE HOsT\n";
 
 	char* recvbuff = new char[2000];
 	int Socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
