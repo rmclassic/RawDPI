@@ -84,9 +84,13 @@ std::string ResolveDOHIP(std::string HostName)
 	if (IP == "")
 		return "";
 	mapmtx.lock();
-	Domains.insert({ HostName, IP });
+	if (Domains.find(HostName) == Domains.end())
+	{
+		Domains.insert({ HostName, IP });
+		SaveIPToFile(HostName, IP);
+	}
 	mapmtx.unlock();
-	SaveIPToFile(HostName, IP);
+
 	return IP;
 }
 

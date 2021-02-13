@@ -116,10 +116,7 @@ int InitRequestResponse(int ClientSocket)
 	{
 		InitGetMethod(ClientSocket, ServerSocket, Host, (char*)RequestBuffer, RequestSize);
 	}
-
-
 	return -1;
-
 }
 
 int InitGetMethod(int ClientSocket, int ServerSocket, std::string Host, char* RequestBuffer, int RequestSize)
@@ -130,7 +127,6 @@ int InitGetMethod(int ClientSocket, int ServerSocket, std::string Host, char* Re
 	const char* SIP = ServerIP.c_str();
 	if (ServerIP == "")
 		return -1;
-
 
 
 	inet_pton(AF_INET, ServerIP.c_str(), &ServerAddress.sin_addr);
@@ -165,7 +161,7 @@ int InitConnectMethod(int ClientSocket, int ServerSocket, std::string Host)
 	if (ServerIP == "")
 		return -1;
 
-	inet_pton(AF_INET, ServerIP.c_str(), &ServerAddress.sin_addr);
+	inet_pton(AF_INET, SIP, &ServerAddress.sin_addr);
 	ServerAddress.sin_port = htons(443);
 	ServerAddress.sin_family = AF_INET;
 
