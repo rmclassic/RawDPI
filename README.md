@@ -2,7 +2,7 @@
 A simple app used to bypass Iran's internet censorship
 Works with many websites that are blocked in Iran
 # Building
-You can simply use GCC(Linux) Or MinGW(Windows) to build the App, no extra dependencies.
+You can simply use GCC(Linux) Or MinGW(Windows) to build the App, no extra dependencies are needed.
 Also you are able to build the project using VisualStudio
 # Installation
 SRSLY? :D
