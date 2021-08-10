@@ -68,8 +68,9 @@ std::string ResolveDOHIP(std::string HostName)
 	//timeval tv;
 	//tv.tv_sec = 1000;
 	//setsockopt(Socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(struct timeval));
-  	usleep(1500000);
-	  int recvd = recv(Socket, recvbuff, 2000, 0);
+  	//usleep(1500000);
+	Sleep(800);
+	int recvd = recv(Socket, recvbuff, 2000, 0);
 		for (int i = 0; i < recvd; i++)
 		{
 

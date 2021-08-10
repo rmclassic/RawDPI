@@ -45,8 +45,9 @@ void OutputLogQueuePush(std::string message)
 
 int main(int argc, char** argv)
 {
-
+#ifdef __unix__
   signal(SIGPIPE, SIG_IGN);
+#endif
 	InitializeExceptionsList();
 	LoadIPsFromFile();
 	//std::thread(StartOutputStream).detach();
@@ -58,7 +59,12 @@ int main(int argc, char** argv)
 
 	int ListenerSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	int wow = 1;
+#ifdef __unix__
 	setsockopt(ListenerSocket, SOL_SOCKET, SO_REUSEADDR, &wow, sizeof(int));
+#endif
+#ifdef _WIN32
+	setsockopt(ListenerSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&wow, sizeof(int));
+#endif
 	sockaddr_in ListenerAddress;
 	ListenerAddress.sin_family = AF_INET;
 	ListenerAddress.sin_addr.s_addr = INADDR_ANY;
