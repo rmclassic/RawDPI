@@ -25,7 +25,7 @@
 #include "DOH.h"
 #include <mutex>
 #include "Exceptions.h"
-#define DPI_OFFSET 10
+#define DPI_OFFSET 3
 std::queue<std::string> OutputLogQueue;
 
 void ManageRequest(int);
@@ -252,17 +252,21 @@ void ClientServerTunnel(int ClientSocket, int ServerSocket, std::string Host)
 	char* Buffer = new char[65535];
 	try
 	{
+		//EXPERIMENTAL
+		int domain_sep = Host.rfind(".");
+		std::string Domain = Host.substr(Host.rfind(".", domain_sep - 1) + 1);
+		std::cout << "Domain: " << Domain << '\n';
+		//EXPERIMENTAL
 		int ClientReceivedCount;
 		do {
 			ClientReceivedCount = recv(ClientSocket, Buffer, 65535, 0);
-			if (!IsException(Host))
+			if (!IsException(Domain))
 			{
-				Hotspots = FindAllSubStrings(Buffer, ClientReceivedCount, Host.c_str(), Host.size());
+				Hotspots = FindAllSubStrings(Buffer, ClientReceivedCount, Domain.c_str(), Domain.size());
 
 					for (int i = 0, hotspot, sent = 0; i < Hotspots.size(); i++)
 					{
 						hotspot = Hotspots[i];
-
 
 						send(ServerSocket, Buffer + sent, hotspot - sent + DPI_OFFSET, 0);
 
