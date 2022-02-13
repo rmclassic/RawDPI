@@ -137,15 +137,22 @@ int InitGetMethod(int ClientSocket, int ServerSocket, std::string Host, char* Re
 	{
 		std::cout << "GET Connection to " + Host + " Established\n";
 		std::cout.flush();
+
 		send(ServerSocket, RequestBuffer, RequestSize, 0);
+
 		int ServerResponseSize = 0;
-		char ServerResponse[16000];
+		char* ServerResponse = new char[65535];
+		struct timeval nTimeout;
+		nTimeout.tv_sec = 5;
+		setsockopt(ClientSocket, SOL_SOCKET, SO_RCVTIMEO, (char*)&nTimeout, sizeof(struct timeval));
+
 		do
 		{
-			ServerResponseSize = recv(ServerSocket, ServerResponse, 16000, 0);
+			ServerResponseSize = recv(ServerSocket, ServerResponse, 65535, 0);
 			send(ClientSocket, ServerResponse, ServerResponseSize, 0);
-
 		} while (ServerResponseSize > 0);
+
+		delete[] ServerResponse;
 	}
 	shutdown(ServerSocket, 0);
 	shutdown(ClientSocket, 0);
@@ -173,7 +180,7 @@ int InitConnectMethod(int ClientSocket, int ServerSocket, std::string Host)
 
 		send(ClientSocket, SuccessResponse.c_str(), SuccessResponse.size(), 0);
 		struct timeval nTimeout;
-		nTimeout.tv_sec = 20000;
+		nTimeout.tv_sec = 10;
 		setsockopt(ServerSocket, SOL_SOCKET, SO_RCVTIMEO, (char*)&nTimeout, sizeof(struct timeval));
 		std::thread(ClientServerTunnel, ClientSocket, ServerSocket, Host).detach();
 		std::thread(ServerClientTunnel, ClientSocket, ServerSocket,Host).detach();
