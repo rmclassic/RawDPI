@@ -63,7 +63,7 @@ int main(int argc, char** argv)
 	setsockopt(ListenerSocket, SOL_SOCKET, SO_REUSEADDR, &wow, sizeof(int));
 #endif
 #ifdef _WIN32
-	setsockopt(ListenerSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&wow, sizeof(int));
+	//setsockopt(ListenerSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&wow, sizeof(int));
 #endif
 	sockaddr_in ListenerAddress;
 	ListenerAddress.sin_family = AF_INET;
@@ -149,7 +149,13 @@ int InitGetMethod(int ClientSocket, int ServerSocket, std::string Host, char* Re
 		int ServerResponseSize = 0;
 		char* ServerResponse = new char[65535];
 		struct timeval nTimeout;
+
+#ifdef __unix__
 		nTimeout.tv_sec = 5;
+#endif
+#ifdef _WIN32
+		nTimeout.tv_sec = 5000;
+#endif
 		setsockopt(ClientSocket, SOL_SOCKET, SO_RCVTIMEO, (char*)&nTimeout, sizeof(struct timeval));
 
 		do
@@ -187,7 +193,7 @@ int InitConnectMethod(int ClientSocket, int ServerSocket, std::string Host)
 		send(ClientSocket, SuccessResponse.c_str(), SuccessResponse.size(), 0);
 		struct timeval nTimeout;
 		nTimeout.tv_sec = 10;
-		setsockopt(ServerSocket, SOL_SOCKET, SO_RCVTIMEO, (char*)&nTimeout, sizeof(struct timeval));
+		//setsockopt(ServerSocket, SOL_SOCKET, SO_RCVTIMEO, (char*)&nTimeout, sizeof(struct timeval));
 		std::thread(ClientServerTunnel, ClientSocket, ServerSocket, Host).detach();
 		std::thread(ServerClientTunnel, ClientSocket, ServerSocket,Host).detach();
 		return ServerSocket;
@@ -281,9 +287,7 @@ void ClientServerTunnel(int ClientSocket, int ServerSocket, std::string Host)
 					{
 						hotspot = Hotspots[i];
 
-						send(ServerSocket, Buffer + sent, hotspot - sent + DPI_OFFSET, 0);
-
-						sent += hotspot + DPI_OFFSET;
+						sent += send(ServerSocket, Buffer + sent, hotspot - sent + DPI_OFFSET, 0);
 					}
 			}
 			else
