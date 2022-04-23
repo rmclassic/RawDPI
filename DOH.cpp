@@ -69,7 +69,12 @@ std::string ResolveDOHIP(std::string HostName)
 	//tv.tv_sec = 1000;
 	//setsockopt(Socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(struct timeval));
   	//usleep(1500000);
+		#ifdef __unix__
+	sleep(800);
+	#endif
+	#ifdef _WIN32
 	Sleep(800);
+	#endif
 	int recvd = recv(Socket, recvbuff, 2000, 0);
 		for (int i = 0; i < recvd; i++)
 		{
@@ -98,7 +103,7 @@ std::string ResolveDOHIP(std::string HostName)
 void LoadIPsFromFile()
 {
 	std::string host, ip;
-	std::ifstream ins("hosts.txt");
+	std::fstream ins("hosts.txt", std::fstream::app);
 	while (!ins.eof())
 	{
 		ins >> host >> ip;
