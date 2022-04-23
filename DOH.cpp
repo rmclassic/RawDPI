@@ -1,4 +1,5 @@
-#include <string>
+#define CPPHTTPLIB_OPENSSL_SUPPORT
+
 #ifdef _WIN32
 #include <WinSock2.h>
 #include <WS2tcpip.h>
@@ -14,23 +15,18 @@
 #endif // __unix__
 
 
+#include <string>
+#include "httplib.h"
+#include "json.hpp"
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <regex>
 #include <mutex>
 std::map<std::string, std::string> Domains;
 std::mutex mapmtx;
 std::mutex filemtx;
-std::string ExtractIPFromAnswer(std::string ansstr)
-{
-	int iploc = ansstr.find("IP:") + 3;
-	if (-1 < iploc)
-	{
-		std::string host = ansstr.substr(iploc);
-		return host;
-	}
-	return "";
-}
+
 
 void SaveIPToFile(std::string host, std::string ip)
 {
@@ -43,55 +39,53 @@ void SaveIPToFile(std::string host, std::string ip)
 
 std::string ResolveDOHIP(std::string HostName)
 {
+	// Return Cloudflare IP for DNS over HTTPS
+	if (HostName == "1.1.1.1")
+		return "1.1.1.1";
 
 	std::map<std::string, std::string>::iterator it = Domains.find(HostName);
 	if (it != Domains.end())
 		return Domains.at(HostName);
- std::cout << "SHOULD RESOLVE HOsT\n";
 
-	char* recvbuff = new char[2000];
-	int Socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	sockaddr_in ServerAddress;
-	ServerAddress.sin_family = AF_INET;
-	inet_pton(AF_INET, "185.176.43.62", &ServerAddress.sin_addr);
-	ServerAddress.sin_port = htons(80);
-	int ListenerAddressSize = sizeof(ServerAddress);
+	// USE HTTPLIB TO GET CF DOH
+	httplib::Client cli("https://cloudflare-dns.com");
+	httplib::Headers headers = {
+  { "Accept", "application/dns-json" }
+};
+	//cli.set_proxy("127.0.0.1", 5585); //Set proxy to ourselves, because the Cloudflare may be blocked too
+	auto res = cli.Get(("/dns-query?type=A&name=" + HostName).c_str(), headers);
 
-	if (0 > connect(Socket, (sockaddr*)& ServerAddress, ListenerAddressSize))
+	if (res->status != 200)
 		return "";
-		std::to_string(HostName.size() + 5);
 
-	std::string reqstr = "POST /DNS.php HTTP/1.1\r\nHost: rmclassic.royalwebhosting.net\r\nContent-Length: " + std::to_string(HostName.size() + 5) + "\r\nContent-Type: application/x-www-form-urlencoded\r\nCookie: __test=5d600a5638740d94f2bfbfede8b2b18f\r\n\r\nhost=" + HostName;
-	send(Socket, reqstr.c_str(), reqstr.length(), 0);
+	std::string IP;
 
-	std::string ansstr;
-	//timeval tv;
-	//tv.tv_sec = 1000;
-	//setsockopt(Socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(struct timeval));
-  	//usleep(1500000);
-		#ifdef __unix__
-	sleep(800);
-	#endif
-	#ifdef _WIN32
-	Sleep(800);
-	#endif
-	int recvd = recv(Socket, recvbuff, 2000, 0);
-		for (int i = 0; i < recvd; i++)
+	try
+	{
+		auto jj = nlohmann::json::parse(res->body);
+		bool FoundIP = false;
+		for (auto i : jj["Answer"])
 		{
-
-			ansstr += recvbuff[i];
-			recvbuff[i] = -52;
+			if (i["type"] == 1)
+			{
+				IP = i["data"];
+				FoundIP = true;
+			}
 		}
 
-
-
-	std::string IP = ExtractIPFromAnswer(ansstr);
-
-	if (IP == "")
+		if (!FoundIP)
+			return "";
+	}
+	catch (...)
+	{
 		return "";
+	}
+
+
 	mapmtx.lock();
 	if (Domains.find(HostName) == Domains.end())
 	{
+
 		Domains.insert({ HostName, IP });
 		SaveIPToFile(HostName, IP);
 	}
