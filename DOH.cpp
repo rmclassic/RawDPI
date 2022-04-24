@@ -97,7 +97,14 @@ std::string ResolveDOHIP(std::string HostName)
 void LoadIPsFromFile()
 {
 	std::string host, ip;
-	std::fstream ins("hosts.txt", std::fstream::app);
+	std::fstream ins("hosts.txt");
+	if (!ins.is_open())
+	{
+		std::ofstream o("hosts.txt");
+		o.close();
+		ins.open("hosts.txt");
+	}
+
 	while (!ins.eof())
 	{
 		ins >> host >> ip;
