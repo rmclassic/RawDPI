@@ -54,8 +54,7 @@ std::string ResolveDOHIP(std::string HostName)
 };
 	//cli.set_proxy("127.0.0.1", 5585); //Set proxy to ourselves, because the Cloudflare may be blocked too
 	auto res = cli.Get(("/dns-query?type=A&name=" + HostName).c_str(), headers);
-
-	if (res->status != 200)
+	if (res == nullptr || res->status != 200)
 		return "";
 
 	std::string IP;
