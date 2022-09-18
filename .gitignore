@@ -1,3 +1,8 @@
 *.out
 *.pch
 *.gch
+.vs/
+hosts.txt
+x64/
+Debug/
+Release/
