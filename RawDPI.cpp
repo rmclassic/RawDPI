@@ -82,7 +82,7 @@ int main(int argc, char** argv)
 	ListenerAddress.sin_port = htons(5585);
 	int ListenerAddressSize = sizeof(ListenerAddress);
 
-	int bound = bind(ListenerSocket, (struct sockaddr*)& ListenerAddress, ListenerAddressSize);
+	int bound = bind(ListenerSocket, (struct sockaddr*)&ListenerAddress, ListenerAddressSize);
 	listen(ListenerSocket, 10);
 	OutputLogQueuePush("Bound");
 	while (true)
@@ -277,9 +277,9 @@ void ServerClientTunnel(int ClientSocket, int ServerSocket, std::string host, in
 		shutdown(ClientSocket, 0);
 		socketclose(ClientSocket);
 
-		std::cout << "Connection to " << host << " terminated, alive connections: " << Connections.size() << '\n';
+		printf("Connection to %s terminated, alive connections: %d\n", host.c_str(), Connections.size());
 
-			//OutputLogQueuePush("Server-Client Tunnel Ended");
+		//OutputLogQueuePush("Server-Client Tunnel Ended");
 	}
 	catch (...)
 	{
@@ -290,7 +290,7 @@ void ServerClientTunnel(int ClientSocket, int ServerSocket, std::string host, in
 		shutdown(ClientSocket, 0);
 		socketclose(ClientSocket);
 
-		std::cout << "Connection to " << host << " terminated, alive connections: " << Connections.size() << '\n';
+		printf("Connection to %s terminated, alive connections: %d\n", host.c_str(), Connections.size());
 
 		//OutputLogQueuePush("Server-Client Tunnel Failed");
 	}
@@ -337,7 +337,7 @@ void ClientServerTunnel(int ClientSocket, int ServerSocket, std::string Host, in
 		shutdown(ClientSocket, 0);
 		socketclose(ClientSocket);
 
-		std::cout << "Connection to " << Host << " terminated, alive connections: " << Connections.size() << '\n';
+		printf("Connection to %s terminated, alive connections: %d\n", Host.c_str(), Connections.size());
 
 		delete[] Buffer;
 		//OutputLogQueuePush("Client-Server Tunnel Ended");
@@ -351,7 +351,7 @@ void ClientServerTunnel(int ClientSocket, int ServerSocket, std::string Host, in
 		shutdown(ClientSocket, 0);
 		socketclose(ClientSocket);
 
-		std::cout << "Connection to " << Host << " terminated, alive connections: " << Connections.size() << '\n';
+		printf("Connection to %s terminated, alive connections: %d\n", Host.c_str(), Connections.size());
 		//OutputLogQueuePush("Client-Server Tunnel Failed");
 	}
 }
