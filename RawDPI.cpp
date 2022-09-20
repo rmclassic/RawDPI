@@ -35,6 +35,7 @@ int InitGetMethod(int, int, std::string, char*, int, sockaddr_in);
 void StartOutputStream();
 std::string ExtractHostFromRequest(std::string);
 std::mutex outmtx;
+std::mutex conmtx;
 std::map<int, ConnectionInfo> Connections;
 void OutputLogQueuePush(std::string message)
 {
@@ -43,15 +44,24 @@ void OutputLogQueuePush(std::string message)
 	outmtx.unlock();
 }
 
-void socketclose(int socket)
+void socketclose(int socket, int id = 0)
 {
 #ifdef __unix__
 	close(socket);
 #endif
 
 #ifdef _WIN32
-	closesocket(socket)
+	closesocket(socket);
 #endif
+
+	if (id == 0)
+	{
+		return;
+	}
+
+	conmtx.lock();
+	Connections.erase(id);
+	conmtx.unlock();
 }
 
 int main(int argc, char** argv)
@@ -178,6 +188,8 @@ int InitGetMethod(int ClientSocket, int ServerSocket, std::string Host, char* Re
 	}
 	shutdown(ServerSocket, 0);
 	shutdown(ClientSocket, 0);
+	socketclose(ServerSocket);
+	socketclose(ClientSocket);
 	return -1;
 }
 
@@ -271,11 +283,10 @@ void ServerClientTunnel(int ClientSocket, int ServerSocket, std::string host, in
 			//OutputLogQueuePush(std::to_string(ServerReceivedCount) + "Bytes from " + host + " to Client");
 		} while (ServerReceivedCount > 0);
 		delete[] Buffer;
-		Connections.erase(id);
 		shutdown(ServerSocket, 0);
-		socketclose(ServerSocket);
+		socketclose(ServerSocket, id);
 		shutdown(ClientSocket, 0);
-		socketclose(ClientSocket);
+		socketclose(ClientSocket, id);
 
 		printf("Connection to %s terminated, alive connections: %d\n", host.c_str(), Connections.size());
 
@@ -284,11 +295,10 @@ void ServerClientTunnel(int ClientSocket, int ServerSocket, std::string host, in
 	catch (...)
 	{
 		delete[] Buffer;
-		Connections.erase(id);
 		shutdown(ServerSocket, 0);
-		socketclose(ServerSocket);
+		socketclose(ServerSocket, id);
 		shutdown(ClientSocket, 0);
-		socketclose(ClientSocket);
+		socketclose(ClientSocket, id);
 
 		printf("Connection to %s terminated, alive connections: %d\n", host.c_str(), Connections.size());
 
@@ -331,11 +341,10 @@ void ClientServerTunnel(int ClientSocket, int ServerSocket, std::string Host, in
 		} while (ClientReceivedCount > 0);
 
 
-		Connections.erase(id);
 		shutdown(ServerSocket, 0);
-		socketclose(ServerSocket);
+		socketclose(ServerSocket, id);
 		shutdown(ClientSocket, 0);
-		socketclose(ClientSocket);
+		socketclose(ClientSocket, id);
 
 		printf("Connection to %s terminated, alive connections: %d\n", Host.c_str(), Connections.size());
 
@@ -345,11 +354,10 @@ void ClientServerTunnel(int ClientSocket, int ServerSocket, std::string Host, in
 	catch (...)
 	{
 		delete[] Buffer;
-		Connections.erase(id);
 		shutdown(ServerSocket, 0);
-		socketclose(ServerSocket);
+		socketclose(ServerSocket, id);
 		shutdown(ClientSocket, 0);
-		socketclose(ClientSocket);
+		socketclose(ClientSocket, id);
 
 		printf("Connection to %s terminated, alive connections: %d\n", Host.c_str(), Connections.size());
 		//OutputLogQueuePush("Client-Server Tunnel Failed");
