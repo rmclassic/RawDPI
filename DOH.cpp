@@ -49,9 +49,12 @@ std::string ResolveDOHIP(std::string HostName)
 
 	// USE HTTPLIB TO GET CF DOH
 	httplib::Client cli("https://cloudflare-dns.com");
+	cli.set_connection_timeout(4, 0i64);
+
 	httplib::Headers headers = {
-  { "Accept", "application/dns-json" }
-};
+		{ "Accept", "application/dns-json" }
+	};
+
 	//cli.set_proxy("127.0.0.1", 5585); //Set proxy to ourselves, because the Cloudflare may be blocked too
 	auto res = cli.Get(("/dns-query?type=A&name=" + HostName).c_str(), headers);
 	if (res == nullptr || res->status != 200)
