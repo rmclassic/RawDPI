@@ -40,8 +40,8 @@ void SaveIPToFile(std::string host, std::string ip)
 std::string ResolveDOHIP(std::string HostName)
 {
 	// Return Cloudflare IP for DNS over HTTPS
-	if (HostName == "1.1.1.1")
-		return "1.1.1.1";
+	if (HostName == "cloudflare-dns.com")
+		return "104.16.248.249";
 
 	std::map<std::string, std::string>::iterator it = Domains.find(HostName);
 	if (it != Domains.end())
@@ -49,13 +49,13 @@ std::string ResolveDOHIP(std::string HostName)
 
 	// USE HTTPLIB TO GET CF DOH
 	httplib::Client cli("https://cloudflare-dns.com");
-	cli.set_connection_timeout(4, 0i64);
+	cli.set_connection_timeout(4, 0);
 
 	httplib::Headers headers = {
 		{ "Accept", "application/dns-json" }
 	};
 
-	//cli.set_proxy("127.0.0.1", 5585); //Set proxy to ourselves, because the Cloudflare may be blocked too
+	cli.set_proxy("127.0.0.1", 5585); //Set proxy to ourselves, because the Cloudflare may be blocked too
 	auto res = cli.Get(("/dns-query?type=A&name=" + HostName).c_str(), headers);
 	if (res == nullptr || res->status != 200)
 		return "";
