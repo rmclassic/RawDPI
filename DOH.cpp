@@ -1,3 +1,5 @@
+#include <openssl/ossl_typ.h>
+#include <openssl/ssl.h>
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 
 #ifdef _WIN32
@@ -48,7 +50,11 @@ std::string ResolveDOHIP(std::string HostName)
 		return Domains.at(HostName);
 
 	// USE HTTPLIB TO GET CF DOH
-	httplib::Client cli("https://cloudflare-dns.com");
+
+	httplib::SSLClient cli("cloudflare-dns.com");
+	cli.set_connection_timeout(4, 0);
+	SSL_CTX_set_options(cli.ssl_context(), SSL_OP_NO_TLSv1_3);
+
 	httplib::Headers headers = {
   { "Accept", "application/dns-json" }
 };
