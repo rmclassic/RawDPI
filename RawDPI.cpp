@@ -24,6 +24,7 @@
 #include <mutex>
 #include "Exceptions.h"
 #include "connectionInfo.h"
+#include "dns.h"
 #define DPI_OFFSET 3
 std::queue<std::string> OutputLogQueue;
 
@@ -50,7 +51,7 @@ void socketclose(int socket)
 #endif
 
 #ifdef _WIN32
-	closesocket(socket)
+	closesocket(socket);
 #endif
 }
 
