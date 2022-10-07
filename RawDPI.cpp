@@ -1,3 +1,4 @@
+#include <cstdio>
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 
 #ifdef _WIN32

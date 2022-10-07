@@ -1,18 +1,18 @@
-SRC_FILES := $(filter-out $(wildcard *_tb.vhdl), $(wildcard *.vhdl))
-SRC_TB_FILES := $(wildcard *_tb.vhdl)
-OBJ_FILES := $(filter-out $(wildcard *.vhdl), $(wildcard *))
-OBJ_FILES := $(filter-out Makefile, $(OBJ_FILES))
+CC = g++
+CFLAGS = -Wall -g
+DEPS = -lssl -lcrypto -lpthread
 
-all : clean component tb
+main: dns.o DOH.o Excptions.o RawDPI.o
+	$(CC) $(DEPS) $(CFLAGS) -o RawDPI RawDPI.o dns.o DOH.o Excptions.o
 
-clean :
-	rm -rf $(OBJ_FILES)
+RawDPI.o: RawDPI.cpp
+	$(CC) $(DEPS) $(CFLAGS) -c RawDPI.cpp
 
-component :
-	ghdl -a -fsynopsys $(SRC_FILES)
+dns.o: dns.cpp
+	$(CC) $(DEPS) $(CFLAGS) -c dns.cpp
 
-tb :
-	$(foreach file,$(SRC_TB_FILES),ghdl -a -fsynopsys $(file);)
-	$(foreach file,$(subst .vhdl,,$(SRC_TB_FILES)),ghdl -e -fsynopsys $(file);)
-	ghdl -c -fsynopsys $(SRC_TB_FILES)
-	$(foreach file,$(subst .vhdl,,$(SRC_TB_FILES)),ghdl -r $(file) --vcd=output_$(file).vcd;)
+DOH.o: DOH.cpp
+	$(CC) $(DEPS) $(CFLAGS) -c DOH.cpp
+
+Excptions.o: Excptions.cpp
+	$(CC) $(DEPS) $(CFLAGS) -c Excptions.cpp

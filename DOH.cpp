@@ -1,3 +1,5 @@
+#include "dns.h"
+#include "base64url.h"
 #include <openssl/ossl_typ.h>
 #include <openssl/ssl.h>
 #define CPPHTTPLIB_OPENSSL_SUPPORT
@@ -19,7 +21,6 @@
 
 #include <string>
 #include "httplib.h"
-#include "json.hpp"
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -42,8 +43,8 @@ void SaveIPToFile(std::string host, std::string ip)
 std::string ResolveDOHIP(std::string HostName)
 {
 	// Return Cloudflare IP for DNS over HTTPS
-	if (HostName == "1.1.1.1")
-		return "1.1.1.1";
+	if (HostName == "adfree.usableprivacy.net")
+		return "78.47.163.141";
 
 	std::map<std::string, std::string>::iterator it = Domains.find(HostName);
 	if (it != Domains.end())
@@ -51,15 +52,20 @@ std::string ResolveDOHIP(std::string HostName)
 
 	// USE HTTPLIB TO GET CF DOH
 
-	httplib::SSLClient cli("cloudflare-dns.com");
+	httplib::SSLClient cli("adfree.usableprivacy.net");
 	cli.set_connection_timeout(4, 0);
 	SSL_CTX_set_options(cli.ssl_context(), SSL_OP_NO_TLSv1_3);
 
 	httplib::Headers headers = {
-  { "Accept", "application/dns-json" }
-};
+  		{ "Accept", "application/dns-json" }
+	};
+
+	char request_buffer[10240];
+	size_t request_buff_len = DNSQuery::Question(HostName).Serialize(request_buffer);
+	auto req_b64 = base64_encode(std::string(request_buffer, request_buff_len));
+
 	//cli.set_proxy("127.0.0.1", 5585); //Set proxy to ourselves, because the Cloudflare may be blocked too
-	auto res = cli.Get(("/dns-query?type=A&name=" + HostName).c_str(), headers);
+	auto res = cli.Get(("/query?dns=" + req_b64).c_str(), headers);
 	if (res == nullptr || res->status != 200)
 		return "";
 
@@ -67,19 +73,27 @@ std::string ResolveDOHIP(std::string HostName)
 
 	try
 	{
-		auto jj = nlohmann::json::parse(res->body);
-		bool FoundIP = false;
-		for (auto i : jj["Answer"])
+		auto dnsRes = DNSQuery::Parse((const unsigned char*)res->body.c_str());
+		for (auto answer : dnsRes.Answers)
 		{
-			if (i["type"] == 1)
-			{
-				IP = i["data"];
-				FoundIP = true;
-			}
+			if (answer.Class == 1 && answer.Type == 1)
+				IP = answer.IPAddress();
 		}
+		// auto jj = nlohmann::json::parse(res->body);
+		// bool FoundIP = false;
+		// for (auto i : jj["Answer"])
+		// {
+		// 	if (i["type"] == 1)
+		// 	{
+		// 		IP = i["data"];
+		// 		FoundIP = true;
+		// 	}
+		// }
 
-		if (!FoundIP)
-			return "";
+		// if (!FoundIP)
+		// 	return "";
+
+		std::cout << "GOT IP " << IP << '\n';
 	}
 	catch (...)
 	{

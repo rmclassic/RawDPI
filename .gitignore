@@ -1,6 +1,7 @@
 *.out
 *.pch
 *.gch
+*.o
 .vs/
 hosts.txt
 x64/
