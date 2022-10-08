@@ -23,6 +23,7 @@
 #include <map>
 #include "DOH.h"
 #include <mutex>
+#include <inttypes.h>
 #include "Exceptions.h"
 #include "connectionInfo.h"
 #include "dns.h"
@@ -36,24 +37,19 @@ int InitConnectMethod(int, int, std::string, sockaddr_in);
 int InitGetMethod(int, int, std::string, char*, int, sockaddr_in);
 void StartOutputStream();
 std::string ExtractHostFromRequest(std::string);
-std::mutex outmtx;
 std::mutex conmtx;
 std::map<int, ConnectionInfo> Connections;
-void OutputLogQueuePush(std::string message)
-{
-	outmtx.lock();
-	OutputLogQueue.push(message);
-	outmtx.unlock();
-}
 
 void socketclose(int socket, int id = 0)
 {
 #ifdef __unix__
 	close(socket);
+	shutdown(socket, 0);
 #endif
 
 #ifdef _WIN32
 	closesocket(socket);
+	shutdown(socket, 0);
 #endif
 
 	if (id == 0)
@@ -62,6 +58,7 @@ void socketclose(int socket, int id = 0)
 	}
 
 	conmtx.lock();
+	printf("alive connections: " PRId64 "\n", Connections.size());
 	Connections.erase(id);
 	conmtx.unlock();
 }
@@ -73,7 +70,6 @@ int main(int argc, char** argv)
 #endif
 	InitializeExceptionsList();
 	LoadIPsFromFile();
-	//std::thread(StartOutputStream).detach();
 	#ifdef _WIN32
       	WSADATA WSAData;
         WSAStartup(MAKEWORD(2, 0), &WSAData);
@@ -96,13 +92,10 @@ int main(int argc, char** argv)
 
 	int bound = bind(ListenerSocket, (struct sockaddr*)&ListenerAddress, ListenerAddressSize);
 	listen(ListenerSocket, 10);
-	OutputLogQueuePush("Bound");
 	while (true)
 	{
 		int IncomingSocket = accept(ListenerSocket, (struct sockaddr*)&ListenerAddress, (socklen_t*)&ListenerAddressSize);
-		OutputLogQueuePush("Connection Received");
 		std::thread(ManageRequest, IncomingSocket, ListenerAddress).detach();
-		//ManageRequest(IncomingSocket);
 	}
 }
 
@@ -188,10 +181,8 @@ int InitGetMethod(int ClientSocket, int ServerSocket, std::string Host, char* Re
 
 		delete[] ServerResponse;
 	}
-	shutdown(ServerSocket, 0);
-	shutdown(ClientSocket, 0);
-	socketclose(ServerSocket);
 	socketclose(ClientSocket);
+	socketclose(ServerSocket);
 	return -1;
 }
 
@@ -228,7 +219,6 @@ int InitConnectMethod(int ClientSocket, int ServerSocket, std::string Host, sock
 		send(ClientSocket, SuccessResponse.c_str(), SuccessResponse.size(), 0);
 		struct timeval nTimeout;
 		nTimeout.tv_sec = 10;
-		//setsockopt(ServerSocket, SOL_SOCKET, SO_RCVTIMEO, (char*)&nTimeout, sizeof(struct timeval));
 		std::thread(ClientServerTunnel, ClientSocket, ServerSocket, Host, addrinfo.sin_port).detach();
 		std::thread(ServerClientTunnel, ClientSocket, ServerSocket,Host, addrinfo.sin_port).detach();
 		return ServerSocket;
@@ -273,47 +263,23 @@ std::vector<int> FindAllSubStrings(char* str, int strsize, const char* substring
 void ServerClientTunnel(int ClientSocket, int ServerSocket, std::string host, int id)
 {
 	char* Buffer = new char[65535];
-	try
+	int ServerReceivedCount;
+	do 
 	{
-		int ServerReceivedCount;
-		do {
-
-
-			ServerReceivedCount = recv(ServerSocket, Buffer, 65535, 0);
-			if (ServerReceivedCount > 0)
-                send(ClientSocket, Buffer, ServerReceivedCount, 0);
-			//OutputLogQueuePush(std::to_string(ServerReceivedCount) + "Bytes from " + host + " to Client");
-		} while (ServerReceivedCount > 0);
-		delete[] Buffer;
-		shutdown(ServerSocket, 0);
-		socketclose(ServerSocket, id);
-		shutdown(ClientSocket, 0);
-		socketclose(ClientSocket, id);
-
-		printf("Connection to %s terminated, alive connections: %d\n", host.c_str(), Connections.size());
-
-		//OutputLogQueuePush("Server-Client Tunnel Ended");
-	}
-	catch (...)
-	{
-		delete[] Buffer;
-		shutdown(ServerSocket, 0);
-		socketclose(ServerSocket, id);
-		shutdown(ClientSocket, 0);
-		socketclose(ClientSocket, id);
-
-		printf("Connection to %s terminated, alive connections: %d\n", host.c_str(), Connections.size());
-
-		//OutputLogQueuePush("Server-Client Tunnel Failed");
-	}
+		ServerReceivedCount = recv(ServerSocket, Buffer, 65535, 0);
+		if (ServerReceivedCount > 0)
+            send(ClientSocket, Buffer, ServerReceivedCount, 0);
+	} while (ServerReceivedCount > 0);
+	delete[] Buffer;
+	socketclose(ClientSocket);
+	socketclose(ServerSocket);
 }
 
 void ClientServerTunnel(int ClientSocket, int ServerSocket, std::string Host, int id)
 {
 	std::vector<int> Hotspots;
 	char* Buffer = new char[65535];
-	try
-	{
+
 		int domain_sep = Host.rfind(".");
 		std::string Domain = Host.substr(Host.rfind(".", domain_sep - 1) + 1);
 		std::cout << "Domain: " << Domain << '\n';
@@ -337,33 +303,10 @@ void ClientServerTunnel(int ClientSocket, int ServerSocket, std::string Host, in
 				send(ServerSocket, Buffer, ClientReceivedCount, 0);
 				std::cout << "Exception found\n";
 			}
-
-
-
 		} while (ClientReceivedCount > 0);
-
-
-		shutdown(ServerSocket, 0);
-		socketclose(ServerSocket, id);
-		shutdown(ClientSocket, 0);
-		socketclose(ClientSocket, id);
-
-		printf("Connection to %s terminated, alive connections: %d\n", Host.c_str(), Connections.size());
-
 		delete[] Buffer;
-		//OutputLogQueuePush("Client-Server Tunnel Ended");
-	}
-	catch (...)
-	{
-		delete[] Buffer;
-		shutdown(ServerSocket, 0);
-		socketclose(ServerSocket, id);
-		shutdown(ClientSocket, 0);
-		socketclose(ClientSocket, id);
-
-		printf("Connection to %s terminated, alive connections: %d\n", Host.c_str(), Connections.size());
-		//OutputLogQueuePush("Client-Server Tunnel Failed");
-	}
+		socketclose(ClientSocket);
+		socketclose(ServerSocket);
 }
 
 std::string ExtractHostFromRequest(std::string Request)
