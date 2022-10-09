@@ -2,6 +2,7 @@
 *.pch
 *.gch
 *.o
+*.txt
 .vs/
 hosts.txt
 x64/

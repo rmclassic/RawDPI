@@ -58,7 +58,7 @@ void socketclose(int socket, int id = 0)
 	}
 
 	conmtx.lock();
-	printf("alive connections: " PRId64 "\n", Connections.size());
+	printf("alive connections: %" PRId64 "\n", Connections.size());
 	Connections.erase(id);
 	conmtx.unlock();
 }
@@ -70,6 +70,7 @@ int main(int argc, char** argv)
 #endif
 	InitializeExceptionsList();
 	LoadIPsFromFile();
+	InitCache();
 	#ifdef _WIN32
       	WSADATA WSAData;
         WSAStartup(MAKEWORD(2, 0), &WSAData);

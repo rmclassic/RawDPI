@@ -26,32 +26,62 @@
 #include <map>
 #include <regex>
 #include <mutex>
+
+#define DOH_HOST "adfree.usableprivacy.net"
+#define DOH_IP "78.47.163.141"
+
 std::map<std::string, std::string> Domains;
 std::mutex mapmtx;
 std::mutex filemtx;
 
+std::ofstream ostr;
+
+void InitCache()
+{
+	if (!ostr.is_open())
+		ostr.open("hosts.txt", std::ios::app);
+}
 
 void SaveIPToFile(std::string host, std::string ip)
 {
 	filemtx.lock();
-	std::ofstream ostr("hosts.txt", std::ios::app);
-	ostr << host << " " << ip << '\n';
-	ostr.close();
+	if (ostr.is_open())
+		ostr << host << " " << ip << '\n';
 	filemtx.unlock();
+}
+
+std::string CacheGetDomain(std::string HostName)
+{
+	mapmtx.lock();
+	std::map<std::string, std::string>::iterator it = Domains.find(HostName);
+	if (it != Domains.end())
+	{
+		auto ip = Domains.at(HostName);
+		mapmtx.unlock();
+		return ip;
+	}
+
+	mapmtx.unlock();
+	return "";
+}
+
+void CacheDomain(std::string HostName, std::string ip)
+{
+	mapmtx.lock();
+	Domains[HostName] = ip;
+	mapmtx.unlock();
 }
 
 std::string ResolveDOHIP(std::string HostName)
 {
 	// Return Cloudflare IP for DNS over HTTPS
-	if (HostName == "adfree.usableprivacy.net")
-		return "78.47.163.141";
+	if (HostName == DOH_HOST)
+		return DOH_IP;
 
-	std::map<std::string, std::string>::iterator it = Domains.find(HostName);
-	if (it != Domains.end())
-		return Domains.at(HostName);
+
 
 	// USE HTTPLIB TO GET CF DOH
-	httplib::SSLClient cli("adfree.usableprivacy.net");
+	httplib::SSLClient cli(DOH_HOST);
 	cli.set_connection_timeout(4, 0);
 	SSL_CTX_set_options(cli.ssl_context(), SSL_OP_NO_TLSv1_3);
 
@@ -84,16 +114,7 @@ std::string ResolveDOHIP(std::string HostName)
 		return "";
 	}
 
-
-	mapmtx.lock();
-	if (Domains.find(HostName) == Domains.end())
-	{
-
-		Domains.insert({ HostName, IP });
-		SaveIPToFile(HostName, IP);
-	}
-	mapmtx.unlock();
-
+	SaveIPToFile(HostName, IP);
 	return IP;
 }
 
@@ -114,4 +135,5 @@ void LoadIPsFromFile()
 		Domains.insert({ host, ip });
 	}
 	std::cout << Domains.size() << " Read from file\n";
+	ins.close();
 }
