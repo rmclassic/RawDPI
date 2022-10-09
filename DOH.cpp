@@ -46,7 +46,7 @@ void SaveIPToFile(std::string host, std::string ip)
 {
 	filemtx.lock();
 	if (ostr.is_open())
-		ostr << host << " " << ip << '\n';
+		ostr << host + " " + ip + '\n';
 	filemtx.unlock();
 }
 
