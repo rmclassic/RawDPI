@@ -54,7 +54,6 @@ void SaveIPToFile(std::string host, std::string ip)
 	if (ostr.is_open())
 	{
 		ostr << host + " " + ip + '\n';
-		std::cout << "RESOLVED " << ip << " FOR " << host << '\n';
 	}
 	filemtx.unlock();
 }
@@ -86,7 +85,6 @@ std::string ResolveDOHIP(std::string HostName)
 	if (IsIpAddress(HostName))
 		return HostName;
 
-	std::cout << "IP IS ? " << IsIpAddress(HostName);
 	// Return Cloudflare IP for DNS over HTTPS
 	if (HostName == DOH_HOST)
 		return DOH_IP;
@@ -127,7 +125,9 @@ std::string ResolveDOHIP(std::string HostName)
 		return "";
 	}
 
-	SaveIPToFile(HostName, IP);
+	if (IP != "")
+		SaveIPToFile(HostName, IP);
+
 	return IP;
 }
 
