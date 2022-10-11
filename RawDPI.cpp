@@ -327,7 +327,7 @@ std::string ExtractHostFromRequest(std::string Request)
 		return match[1];
 	else
 	{
-		r = std::regex("CONNECT ([^:]*).* HTTP\/[0-9]\.[0-9]\r\n.*");
+		r = std::regex("CONNECT ([^:]*).* HTTP\\/[0-9]\\.[0-9]\r\n.*");
 		std::regex_search(Request, match, r);
 	}
 
@@ -339,7 +339,7 @@ std::string ExtractHostFromRequest(std::string Request)
 
 unsigned short ExtractPortFromRequest(std::string Request, unsigned short default_val)
 {
-	auto r = std::regex("(CONNECT|GET) .*:([0-9]{0,5}) HTTP\/[0-9]\.[0-9]");
+	auto r = std::regex("(CONNECT|GET) .*:([0-9]{0,5}) HTTP\\/[0-9]\\.[0-9]");
 	std::smatch match;
 	std::regex_search(Request, match, r);
 
