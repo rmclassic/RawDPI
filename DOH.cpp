@@ -46,7 +46,10 @@ void SaveIPToFile(std::string host, std::string ip)
 {
 	filemtx.lock();
 	if (ostr.is_open())
+	{
 		ostr << host + " " + ip + '\n';
+		std::cout << "RESOLVED " << ip << " FOR " << host << '\n';
+	}
 	filemtx.unlock();
 }
 

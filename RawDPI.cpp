@@ -23,6 +23,7 @@
 #include <map>
 #include "DOH.h"
 #include <mutex>
+#include <regex>
 #include <inttypes.h>
 #include "Exceptions.h"
 #include "connectionInfo.h"
@@ -33,10 +34,11 @@ std::queue<std::string> OutputLogQueue;
 void ManageRequest(int, sockaddr_in);
 void ServerClientTunnel(int, int, std::string, int);
 void ClientServerTunnel(int, int, std::string, int);
-int InitConnectMethod(int, int, std::string, sockaddr_in);
+int InitConnectMethod(int, int, std::string, char*, int, sockaddr_in);
 int InitGetMethod(int, int, std::string, char*, int, sockaddr_in);
 void StartOutputStream();
 std::string ExtractHostFromRequest(std::string);
+unsigned short ExtractPortFromRequest(std::string, unsigned short);
 std::mutex conmtx;
 std::map<int, ConnectionInfo> Connections;
 
@@ -130,10 +132,11 @@ int InitRequestResponse(int ClientSocket, sockaddr_in addrinfo)
 		return -1;
 	}
 	std::string ReqBuff = RequestBuffer;
+	ExtractPortFromRequest(ReqBuff, 443);
 
 	if (ReqBuff.find("CONNECT") == 0)
 	{
-		InitConnectMethod(ClientSocket, ServerSocket, Host, addrinfo);
+		InitConnectMethod(ClientSocket, ServerSocket, Host, (char*)RequestBuffer, RequestSize, addrinfo);
 	}
 	else
 	{
@@ -148,6 +151,8 @@ int InitGetMethod(int ClientSocket, int ServerSocket, std::string Host, char* Re
 
 	std::string ServerIP = ResolveDOHIP(Host);
 	const char* SIP = ServerIP.c_str();
+	unsigned short port = ExtractPortFromRequest(std::string(RequestBuffer, RequestSize), 443);
+
 	if (ServerIP == "")
 		return -1;
 
@@ -187,17 +192,17 @@ int InitGetMethod(int ClientSocket, int ServerSocket, std::string Host, char* Re
 	return -1;
 }
 
-int InitConnectMethod(int ClientSocket, int ServerSocket, std::string Host, sockaddr_in addrinfo)
+int InitConnectMethod(int ClientSocket, int ServerSocket, std::string Host, char* request, int request_size, sockaddr_in addrinfo)
 {
 	sockaddr_in ServerAddress;
-	//OutputLogQueuePush("Resolving " + Host);
 	std::string ServerIP = ResolveDOHIP(Host);
 	const char* SIP = ServerIP.c_str();
+	unsigned short port = ExtractPortFromRequest(std::string(request, request_size), 443);
 	if (ServerIP == "")
 		return -1;
 
 	inet_pton(AF_INET, SIP, &ServerAddress.sin_addr);
-	ServerAddress.sin_port = htons(443);
+	ServerAddress.sin_port = htons(port);
 	ServerAddress.sin_family = AF_INET;
 
 	if (0 == connect(ServerSocket, (sockaddr*)&ServerAddress, sizeof(ServerAddress)))
@@ -211,11 +216,13 @@ int InitConnectMethod(int ClientSocket, int ServerSocket, std::string Host, sock
 		connInfo.SourceIP = inet_ntop(AF_INET, &addrinfo.sin_addr, temp, 17);
 		connInfo.DestinationIP = SIP;
 		connInfo.SourcePort = addrinfo.sin_port;
-		connInfo.DestinationPort = 443;
+		connInfo.DestinationPort = port;
 		connInfo.ClientTunnel = ClientSocket;
 		connInfo.ServerTunnel = ServerSocket;
 
+		conmtx.lock();
 		Connections.insert({ addrinfo.sin_port, connInfo });
+		conmtx.unlock();
 
 		send(ClientSocket, SuccessResponse.c_str(), SuccessResponse.size(), 0);
 		struct timeval nTimeout;
@@ -312,11 +319,32 @@ void ClientServerTunnel(int ClientSocket, int ServerSocket, std::string Host, in
 
 std::string ExtractHostFromRequest(std::string Request)
 {
-	int host_start = Request.find("Host:") + 6;
-	if (host_start == 5)
-		return "";
-		//OutputLogQueuePush("host was in " + host_start);
-	int host_end = Request.find('\r', host_start) < Request.find(':', host_start)? Request.find('\r', host_start) : Request.find(':', host_start);
-		std::string host = Request.substr(host_start, host_end - host_start);
-		return host;
+	std::regex r("Host: ([^:]*).*\r\n");
+	std::smatch match;
+	std::regex_search(Request, match, r);
+
+	if (match.size() > 1)
+		return match[1];
+	else
+	{
+		r = std::regex("CONNECT ([^:]*).* HTTP\/[0-9]\.[0-9]\r\n.*");
+		std::regex_search(Request, match, r);
+	}
+
+	if (match.size() > 1)
+		return match[2];
+
+	return "";
+}
+
+unsigned short ExtractPortFromRequest(std::string Request, unsigned short default_val)
+{
+	auto r = std::regex("(CONNECT|GET) .*:([0-9]{0,5}) HTTP\/[0-9]\.[0-9]");
+	std::smatch match;
+	std::regex_search(Request, match, r);
+
+	if (match.size() > 1)
+		return atoi(match[2].str().c_str());
+
+	return default_val;
 }
