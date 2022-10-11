@@ -42,6 +42,12 @@ void InitCache()
 		ostr.open("hosts.txt", std::ios::app);
 }
 
+bool IsIpAddress(std::string host)
+{
+	std::regex r("^((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)\\.?\\b){4}$");
+	return std::regex_match(host, r);
+}
+
 void SaveIPToFile(std::string host, std::string ip)
 {
 	filemtx.lock();
@@ -77,6 +83,10 @@ void CacheDomain(std::string HostName, std::string ip)
 
 std::string ResolveDOHIP(std::string HostName)
 {
+	if (IsIpAddress(HostName))
+		return HostName;
+
+	std::cout << "IP IS ? " << IsIpAddress(HostName);
 	// Return Cloudflare IP for DNS over HTTPS
 	if (HostName == DOH_HOST)
 		return DOH_IP;

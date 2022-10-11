@@ -132,7 +132,6 @@ int InitRequestResponse(int ClientSocket, sockaddr_in addrinfo)
 		return -1;
 	}
 	std::string ReqBuff = RequestBuffer;
-	ExtractPortFromRequest(ReqBuff, 443);
 
 	if (ReqBuff.find("CONNECT") == 0)
 	{
@@ -151,14 +150,14 @@ int InitGetMethod(int ClientSocket, int ServerSocket, std::string Host, char* Re
 
 	std::string ServerIP = ResolveDOHIP(Host);
 	const char* SIP = ServerIP.c_str();
-	unsigned short port = ExtractPortFromRequest(std::string(RequestBuffer, RequestSize), 443);
+	unsigned short port = ExtractPortFromRequest(std::string(RequestBuffer, RequestSize), 80);
 
 	if (ServerIP == "")
 		return -1;
 
 
 	inet_pton(AF_INET, ServerIP.c_str(), &ServerAddress.sin_addr);
-	ServerAddress.sin_port = htons(80);
+	ServerAddress.sin_port = htons(port);
 	ServerAddress.sin_family = AF_INET;
 
 	if (0 == connect(ServerSocket, (sockaddr*)&ServerAddress, sizeof(ServerAddress)))
