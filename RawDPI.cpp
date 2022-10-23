@@ -144,6 +144,19 @@ int InitRequestResponse(int ClientSocket, sockaddr_in addrinfo)
 	return -1;
 }
 
+size_t ScanContentLength(const char* data, size_t dataSize)
+{
+	std::string dataStr = std::string(data, dataSize);
+	auto r = std::regex("[c|C]ontent-[L|l]ength: [0-9]{0,5}\\r\\n");
+	std::smatch match;
+	std::regex_search(dataStr, match, r);
+
+	if (match.size() > 1)
+		return atof(match[2].str().c_str());
+
+	return -1;
+}
+
 int InitGetMethod(int ClientSocket, int ServerSocket, std::string Host, char* RequestBuffer, int RequestSize, sockaddr_in addrinfo)
 {
 	sockaddr_in ServerAddress;
@@ -164,7 +177,10 @@ int InitGetMethod(int ClientSocket, int ServerSocket, std::string Host, char* Re
 	{
 		std::cout << "GET Connection to " + Host + " Established\n";
 		std::cout.flush();
+
+		strstr(RequestBuffer, " ")[1] = '\t';
 		send(ServerSocket, RequestBuffer, RequestSize, 0);
+
 
 		int ServerResponseSize = 0;
 		char* ServerResponse = new char[65535];
@@ -177,13 +193,24 @@ int InitGetMethod(int ClientSocket, int ServerSocket, std::string Host, char* Re
 		nTimeout.tv_sec = 5000;
 #endif
 		setsockopt(ClientSocket, SOL_SOCKET, SO_RCVTIMEO, (char*)&nTimeout, sizeof(struct timeval));
+		setsockopt(ServerSocket, SOL_SOCKET, SO_RCVTIMEO, (char*)&nTimeout, sizeof(struct timeval));
 
+		size_t ContentLength = -1;
+		bool headersRead = false;
 		do
 		{
 			ServerResponseSize = recv(ServerSocket, ServerResponse, 65535, 0);
-			send(ClientSocket, ServerResponse, ServerResponseSize, 0);
-		} while (ServerResponseSize > 0);
+			if (!headersRead)
+			{
+				ContentLength = ScanContentLength(ServerResponse, ServerResponseSize);
+				headersRead = true;
+			}
+			
 
+			send(ClientSocket, ServerResponse, ServerResponseSize, 0);
+		} while ((ServerResponseSize < ContentLength && ContentLength > 0) || (ServerResponseSize > 0 && (ContentLength <= 0)));
+
+		std::cout << "Done GET " << Host << '\n';
 		delete[] ServerResponse;
 	}
 	socketclose(ClientSocket);
@@ -297,12 +324,12 @@ void ClientServerTunnel(int ClientSocket, int ServerSocket, std::string Host, in
 			if (!IsException(Domain))
 			{
 				Hotspots = FindAllSubStrings(Buffer, ClientReceivedCount, Domain.c_str(), Domain.size());
-
+				Hotspots = { 1, ClientReceivedCount };
 					for (int i = 0, hotspot, sent = 0; i < Hotspots.size(); i++)
 					{
 						hotspot = Hotspots[i];
 
-						sent += send(ServerSocket, Buffer + sent, hotspot - sent + DPI_OFFSET, 0);
+						sent += send(ServerSocket, Buffer + sent, hotspot - sent /* + DPI_OFFSET*/, 0);
 					}
 			}
 			else
@@ -318,7 +345,7 @@ void ClientServerTunnel(int ClientSocket, int ServerSocket, std::string Host, in
 
 std::string ExtractHostFromRequest(std::string Request)
 {
-	std::regex r("Host: ([^:]*).*\r\n");
+	std::regex r("Host: ([^:]*)\r\n");
 	std::smatch match;
 	std::regex_search(Request, match, r);
 
